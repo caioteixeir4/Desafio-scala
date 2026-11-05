@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    # Credenciais vem do .env (fora do versionamento)
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - .:/app
+      # Caches persistentes para nao rebaixar dependencias a cada execucao
+      - sbt-cache:/root/.sbt
+      - ivy-cache:/root/.ivy2
+      - coursier-cache:/root/.cache/coursier
+    # Uso: docker compose run --rm app sbt -batch compile|test|run
+    command: sbt -batch compile
+
+volumes:
+  sbt-cache:
+  ivy-cache:
+  coursier-cache:

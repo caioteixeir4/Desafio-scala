@@ -1,0 +1,7 @@
+.env
+target/
+project/target/
+project/project/
+.bsp/
+.idea/
+output.json
