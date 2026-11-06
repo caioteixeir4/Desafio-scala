@@ -3,7 +3,7 @@ package challenge.auth
 import scala.collection.mutable
 
 import challenge.auth.AuthError.*
-import challenge.http.{Http, Session}
+import challenge.http.{Http, HttpFailure, Session}
 import challenge.parse.LoginParser
 import sttp.client3.*
 
@@ -40,4 +40,7 @@ final class DiscourseAuthenticator(
       jar: mutable.Map[String, String],
       req: Request[Either[String, String], Any]
   ): Either[AuthError, Response[String]] =
-    http.send(jar, req).left.map(e => SiteUnavailable(s"Falha de rede: ${e.getMessage}"))
+    http.send(jar, req).left.map {
+      case n: HttpFailure.Network => SiteUnavailable(n.message)
+      case other                  => UnexpectedResponse(other.message)
+    }

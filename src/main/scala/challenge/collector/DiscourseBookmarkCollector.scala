@@ -41,7 +41,7 @@ final class DiscourseBookmarkCollector(
   private def fetch(jar: mutable.Map[String, String], path: String, page: Int) =
     val uri = Uri.unsafeParse(http.baseUrl + path)
     for
-      res <- http.send(jar, basicRequest.get(uri)).left.map(e => s"Falha de rede: ${e.getMessage}")
+      res <- http.send(jar, basicRequest.get(uri)).left.map(_.message)
       _ <- res.code.code match
         case 401 | 403 => Left(s"Sessao nao autorizada (HTTP ${res.code.code}) em $path")
         case c if c >= 400 => Left(s"HTTP $c em $path")

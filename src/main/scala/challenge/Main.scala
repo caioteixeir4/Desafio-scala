@@ -19,6 +19,11 @@ import sttp.client3.HttpClientSyncBackend
       sys.exit(2)
     case Right(config) =>
       val http = Http(config, HttpClientSyncBackend(), RateLimiter(config.minRequestIntervalMs))
+      http.loadRobots() match
+        case Left(err) =>
+          System.err.println(err.message)
+          sys.exit(3)
+        case Right(_) => ()
       DiscourseAuthenticator(config.username, config.password, http).login() match
         case Left(err) =>
           System.err.println(s"Falha de autenticacao: ${err.message}")

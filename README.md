@@ -62,6 +62,7 @@ O `output.json` é gerado na raiz do projeto.
 |---|---|
 | 0 | sucesso |
 | 2 | variável de ambiente obrigatória ausente |
+| 3 | `robots.txt` indisponível (5xx ou rede); o robô não segue por cautela |
 | 10 | credencial inválida |
 | 11 | conta não ativada |
 | 12 | segundo fator exigido |
@@ -92,7 +93,8 @@ src/test/       testes; a coleta paginada usa um servidor simulado
 - **Sessão do zero a cada execução**, com cookie jar vazio. Nenhum cookie ou token é guardado no código.
 - **Paginação guiada pela resposta.** O robô segue `more_bookmarks_url` até ela sumir. Não há contagem de páginas fixa; existe só uma trava de 1000 páginas contra loop infinito, e a coleta para em página vazia ou link repetido.
 - **Falha explícita em vez de dado inventado.** Se o autor de um bookmark não vier na resposta, o parser retorna erro.
-- **Cuidado com o alvo.** Requisições sequenciais, no mínimo 1 segundo entre elas, User-Agent identificável. O login passa por `/session`, caminho bloqueado no `robots.txt`; isso é uma exceção deliberada, explicada no RECON.md.
+- **Cuidado com o alvo.** Requisições sequenciais, no mínimo 1 segundo entre elas, User-Agent identificável.
+- **`robots.txt` aplicado no código.** No início o robô baixa o `robots.txt` e toda requisição passa pelas regras (RFC 9309: regra mais longa vence, `*` e `$`). Um caminho bloqueado nem chega a ser requisitado. `robots.txt` 4xx libera tudo; 5xx ou falha de rede interrompe a execução. A única exceção é `/session`, necessária para o login, configurada em `Http` e explicada no RECON.md.
 - **Bibliotecas:** sttp (HTTP genérico), circe (JSON) e munit (testes). Nenhuma específica do Discourse.
 - **Segredos** só por variável de ambiente / `.env`, ignorado pelo git e pelo Docker.
 

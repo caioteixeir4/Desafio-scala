@@ -63,6 +63,8 @@ Disallow: /search
 
 O login passa obrigatoriamente por `/session`, caminho bloqueado. O desafio exige login e também exige respeitar o `robots.txt`.
 
+**Como o robô lida com isso:** ele baixa o `robots.txt` no início e aplica as regras a toda requisição, com o parser em `RobotsTxt` testado contra o arquivo real do site (salvo em `src/test/resources/fixtures/robots.txt`). A única exceção configurada é o prefixo `/session`.
+
 **Decisão:** o login é uma exceção deliberada e consciente. O `robots.txt` é um protocolo para crawlers que rastreiam páginas; aqui é uma única autenticação por execução, com a conta do próprio autor, exigida pelo desafio. Fora de `/session`, o robô só acessa `/u/{usuario}/bookmarks.json`, que não está bloqueado, e evita os demais caminhos listados. Os termos de uso do fórum devem ser lidos pelo avaliador/autor; esta decisão não substitui isso.
 
 ## 5. O que quebrou no caminho
