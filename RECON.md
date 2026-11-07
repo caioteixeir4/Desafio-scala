@@ -50,6 +50,27 @@ Isso confirma o fluxo de dois passos do robô. Diferenças em relação ao que o
 
 **O que a captura do navegador mostrou nos bookmarks:** ao abrir a página de favoritos logado, a interface chamou `GET /u/Caio_Teixeira/bookmarks.json?q=&acting_username=` (200), com `q` e `acting_username` vazios (parâmetros de busca da interface). **É o mesmo endpoint que o robô usa**, e a resposta tem o mesmo formato (`user_bookmark_list.bookmarks` e `more_bookmarks_url` apontando para `?page=1`). O robô não envia `q` nem `acting_username`; as execuções reais funcionaram sem eles. Nos itens mais novos (criados em 2026-11-07), `bookmarkable_type` também é `Topic` e a `bookmarkable_url` não tem número de postagem. O número no final da URL (`.../416693/2`) só aparecia no painel rápido `user-menu-bookmarks`, não neste endpoint.
 
+### De onde vem esse fluxo: fontes verificáveis
+
+O robô usa o **mesmo fluxo de login que o navegador** (`GET /session/csrf`, depois `POST /session`); não há um "login de robô" diferente. Duas fontes permitem conferir isso de forma independente.
+
+**1. Reproduzir no navegador (DevTools).** Fazer logout, abrir a aba Network com "Preserve log" marcado, filtrar por Fetch/XHR, fazer login pela janela do site e observar `session/csrf` (GET) seguido de `session` (POST). Depois, abrir a página de favoritos e observar `bookmarks.json`. É o que foi feito em 2026-11-07 (resultado nas tabelas acima).
+
+**2. Código-fonte aberto do Discourse.** O site roda Discourse, cujo código é público em [github.com/discourse/discourse](https://github.com/discourse/discourse). O arquivo de rotas, [`config/routes.rb`](https://github.com/discourse/discourse/blob/main/config/routes.rb), declara as rotas usadas pelo robô (consultado em 2026-11-07, branch `main`; a numeração de linhas muda, então não a cito):
+
+| Uso no robô | Declaração em `routes.rb` |
+|---|---|
+| `GET /session/csrf` | `get "session/csrf" => "session#csrf"` |
+| `POST /session` (login) e `DELETE /session/:usuario` (logout) | `resources :session, ... only: %i[create destroy]` |
+| `GET /session/current.json` (confirmação) | `get "session/current" => "session#current"` |
+| `GET /u/:usuario/bookmarks.json` (coleta) | `get ".../:username/bookmarks" => "users#bookmarks"` |
+| painel rápido do avatar (descartado) | `get ".../:username/user-menu-bookmarks" => "users#user_menu_bookmarks"` |
+| criar favorito (o `429` do limite diário) | `resources :bookmarks, only: %i[create destroy update]` |
+
+O mesmo arquivo declara as rotas de segundo fator (`session/2fa`, `session/passkey/...`), úteis para o bônus.
+
+**Ordem em que as coisas realmente aconteceram:** o fluxo foi montado a partir do conhecimento prévio do Discourse, testado primeiro com sondagens anônimas e depois com execução real; o DevTools e a consulta ao `routes.rb` vieram **depois**, como confirmação, e não como origem da descoberta. A documentação pública de API do Discourse não foi usada: ela trata de autenticação por API key, que o desafio proíbe.
+
 **Execuções reais contra o site:**
 
 - **2026-11-05:** com 20 bookmarks na conta, o robô autenticou como `Caio_Teixeira`, aplicou o `robots.txt` e coletou os 20 em uma página.
