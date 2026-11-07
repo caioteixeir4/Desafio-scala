@@ -36,7 +36,7 @@ O `output.json` é gerado na raiz do projeto (ignorado pelo git). Um exemplo de 
 | `DISCOURSE_PASSWORD` | sim | |
 | `USER_AGENT` | não | `oystr-code-challenge-bot/0.1 (Caio Teixeira; https://github.com/caioteixeir4)` |
 | `DISCOURSE_BASE_URL` | não | `https://meta.discourse.org` |
-| `MIN_REQUEST_INTERVAL_MS` | não | `1000` |
+| `MIN_REQUEST_INTERVAL_MS` | não | `1000`; tempo mínimo entre uma requisição e a seguinte, em ms (inteiro ≥ 0; valor inválido interrompe com erro) |
 | `OUTPUT_PATH` | não | `output.json` |
 | `RAW_DUMP_DIR` | não | vazio; se definido, salva a resposta crua de cada página (útil para gerar fixtures) |
 
@@ -61,7 +61,7 @@ O `output.json` é gerado na raiz do projeto (ignorado pelo git). Um exemplo de 
 | Código | Significado |
 |---|---|
 | 0 | sucesso |
-| 2 | variável de ambiente obrigatória ausente |
+| 2 | variável de ambiente obrigatória ausente, ou com valor inválido (ex.: letras em `MIN_REQUEST_INTERVAL_MS`) |
 | 3 | `robots.txt` indisponível (5xx ou rede); o robô não segue por cautela |
 | 10 | credencial inválida |
 | 11 | conta não ativada |
