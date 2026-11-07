@@ -27,7 +27,7 @@ object Config:
       baseUrl = env.getOrElse("DISCOURSE_BASE_URL", "https://meta.discourse.org"),
       username = user,
       password = pass,
-      userAgent = env.getOrElse("USER_AGENT", "oystr-code-challenge-bot/0.1 (candidato; contato: preencher)"),
+      userAgent = env.getOrElse("USER_AGENT", "oystr-code-challenge-bot/0.1 (Caio Teixeira; https://github.com/caioteixeir4)"),
       minRequestIntervalMs = env.get("MIN_REQUEST_INTERVAL_MS").flatMap(_.toLongOption).getOrElse(1000L),
       outputPath = env.getOrElse("OUTPUT_PATH", "output.json"),
       rawDumpDir = env.get("RAW_DUMP_DIR").filter(_.nonEmpty)

@@ -38,3 +38,50 @@ class BookmarkParserSpec extends munit.FunSuite:
   test("JSON invalido vira erro") {
     assert(BookmarkParser.parse("<html>", base).isLeft)
   }
+
+  // --- Fixtures REAIS: GET /u/Caio_Teixeira/bookmarks.json (p0, mais novos) e ?page=1 (p1, mais antigos).
+  //     p1 capturada em 2026-11-05 (quando a conta tinha 20); p0 em 2026-11-07 (40 no total). ---
+
+  private def resource(name: String): String =
+    val src = scala.io.Source.fromResource(s"fixtures/$name")
+    try src.mkString finally src.close()
+
+  private lazy val real   = BookmarkParser.parse(resource("bookmarks-page-real-p1.json"), base).fold(e => fail(e), identity)
+  private lazy val realP0 = BookmarkParser.parse(resource("bookmarks-page-real-p0.json"), base).fold(e => fail(e), identity)
+
+  test("resposta real, pagina 0: 20 bookmarks e proxima pagina vinda de more_bookmarks_url") {
+    assertEquals(realP0.bookmarks.size, 20)
+    assertEquals(realP0.next, Some("/u/Caio_Teixeira/bookmarks.json?page=1"))
+  }
+
+  test("resposta real, ultima pagina: 20 bookmarks e nenhuma proxima pagina (campo ausente)") {
+    assertEquals(real.bookmarks.size, 20)
+    assertEquals(real.next, None)
+  }
+
+  test("respostas reais: as duas paginas nao tem bookmarks repetidos") {
+    val urls = (realP0.bookmarks ++ real.bookmarks).map(_.url)
+    assertEquals(urls.distinct.size, 40)
+  }
+
+  test("resposta real: primeiro bookmark com titulo original, url absoluta e autor") {
+    assertEquals(
+      real.bookmarks.head,
+      challenge.model.Bookmark(
+        title = "Desktop PWA Navigation",
+        url = "https://meta.discourse.org/t/desktop-pwa-navigation/241108",
+        author = "Don"
+      )
+    )
+  }
+
+  test("resposta real: usa 'title' original, nao o 'fancy_title' traduzido") {
+    // A resposta traz fancy_title localizado ("Navegacao PWA de Desktop"); o robo nao deve usa-lo.
+    assert(!real.bookmarks.exists(_.title.startsWith("Navega")))
+  }
+
+  test("resposta real: todos tem autor e url do forum") {
+    assert(real.bookmarks.forall(_.author.nonEmpty))
+    assert(real.bookmarks.forall(_.url.startsWith(base + "/t/")))
+    assert(real.bookmarks.exists(_.author == "Discourse")) // posts oficiais
+  }

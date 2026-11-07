@@ -51,6 +51,10 @@ object LoginParser:
           .map(_ => NotAuthenticated("Resposta sem current_user.username: sessao nao autenticada"))
       }
 
+  /** DELETE /session/{usuario}. So o status importa; a confirmacao real e feita depois, em /session/current.json. */
+  def parseLogout(status: Int): Either[AuthError, Unit] =
+    statusError(status).toLeft(())
+
   private def statusError(status: Int): Option[AuthError] =
     if status == 429 then Some(RateLimited("HTTP 429"))
     else if status >= 500 then Some(SiteUnavailable(s"HTTP $status"))

@@ -1,0 +1,208 @@
+{
+  "source" : "https://meta.discourse.org",
+  "username" : "Caio_Teixeira",
+  "collectedAt" : "2026-11-07T15:19:55.480672477Z",
+  "total" : 40,
+  "bookmarks" : [
+    {
+      "title" : "Forum update deleted or hid the Patron badge due to it being miscategorized as a voice badge before",
+      "url" : "https://meta.discourse.org/t/forum-update-deleted-or-hid-the-patron-badge-due-to-it-being-miscategorized-as-a-voice-badge-before/416693",
+      "author" : "twofoursixeight"
+    },
+    {
+      "title" : "Add event: filter to the topic filter query language (Discourse Events plugin extension)",
+      "url" : "https://meta.discourse.org/t/add-event-filter-to-the-topic-filter-query-language-discourse-events-plugin-extension/415803",
+      "author" : "nathank"
+    },
+    {
+      "title" : "Discourse MCP is here!",
+      "url" : "https://meta.discourse.org/t/discourse-mcp-is-here/386983",
+      "author" : "Falco"
+    },
+    {
+      "title" : "New users that have never been Seen or Activated",
+      "url" : "https://meta.discourse.org/t/new-users-that-have-never-been-seen-or-activated/416360",
+      "author" : "mbauman"
+    },
+    {
+      "title" : "Discourse community hangout (fortnightly)",
+      "url" : "https://meta.discourse.org/t/discourse-community-hangout-fortnightly/414879",
+      "author" : "mcwumbly"
+    },
+    {
+      "title" : "Are usernames ever auto-generated?",
+      "url" : "https://meta.discourse.org/t/are-usernames-ever-auto-generated/416628",
+      "author" : "szhorvat"
+    },
+    {
+      "title" : "A sense of place: Meta's new sidebar",
+      "url" : "https://meta.discourse.org/t/a-sense-of-place-metas-new-sidebar/415035",
+      "author" : "manuel"
+    },
+    {
+      "title" : "Reddit vs. Discourse: A Tale of Two Incentive Models",
+      "url" : "https://meta.discourse.org/t/reddit-vs-discourse-a-tale-of-two-incentive-models/416582",
+      "author" : "system"
+    },
+    {
+      "title" : "Tag descriptions are no longer shown anywhere outside the tag page since #42005",
+      "url" : "https://meta.discourse.org/t/tag-descriptions-are-no-longer-shown-anywhere-outside-the-tag-page-since-42005/416733",
+      "author" : "thoka"
+    },
+    {
+      "title" : "Show us your Workflows",
+      "url" : "https://meta.discourse.org/t/show-us-your-workflows/410589",
+      "author" : "HAWK"
+    },
+    {
+      "title" : "\"Suppressed from latest\" category vs. \"muted\" category. What is the difference?",
+      "url" : "https://meta.discourse.org/t/suppressed-from-latest-category-vs-muted-category-what-is-the-difference/158567",
+      "author" : "gerald"
+    },
+    {
+      "title" : "\" Gemini 2.0 Flash Lite needs attention\"",
+      "url" : "https://meta.discourse.org/t/gemini-2-0-flash-lite-needs-attention/416767",
+      "author" : "rlauriston"
+    },
+    {
+      "title" : "Embeddings search still running error",
+      "url" : "https://meta.discourse.org/t/embeddings-search-still-running-error/415659",
+      "author" : "RBoy"
+    },
+    {
+      "title" : "Automatically flag spam posts containing a certain string?",
+      "url" : "https://meta.discourse.org/t/automatically-flag-spam-posts-containing-a-certain-string/416775",
+      "author" : "rlauriston"
+    },
+    {
+      "title" : "Mail-receiver: Authentication-Results failure ignored",
+      "url" : "https://meta.discourse.org/t/mail-receiver-authentication-results-failure-ignored/416695",
+      "author" : "Dannii"
+    },
+    {
+      "title" : "Updates blocked must run latest img - self hosted",
+      "url" : "https://meta.discourse.org/t/updates-blocked-must-run-latest-img-self-hosted/415674",
+      "author" : "Giantkin_1"
+    },
+    {
+      "title" : "Déplacer une catégorie entre deux forums Discourse",
+      "url" : "https://meta.discourse.org/t/deplacer-une-categorie-entre-deux-forums-discourse/416798",
+      "author" : "Mireille_Coilhac"
+    },
+    {
+      "title" : "Do not swap Approve / Reject buttons in the spam queue!",
+      "url" : "https://meta.discourse.org/t/do-not-swap-approve-reject-buttons-in-the-spam-queue/375951",
+      "author" : "Laurent"
+    },
+    {
+      "title" : "Problem installing Discourse on virtual machine",
+      "url" : "https://meta.discourse.org/t/problem-installing-discourse-on-virtual-machine/416806",
+      "author" : "ivo1467"
+    },
+    {
+      "title" : "Why might all our users show as \"new\"?",
+      "url" : "https://meta.discourse.org/t/why-might-all-our-users-show-as-new/416697",
+      "author" : "watchmanmonitor"
+    },
+    {
+      "title" : "Desktop PWA Navigation",
+      "url" : "https://meta.discourse.org/t/desktop-pwa-navigation/241108",
+      "author" : "Don"
+    },
+    {
+      "title" : "Big Header - Little Header",
+      "url" : "https://meta.discourse.org/t/big-header-little-header/86811",
+      "author" : "tshenry"
+    },
+    {
+      "title" : "Restricting new topic creation based on reading time",
+      "url" : "https://meta.discourse.org/t/restricting-new-topic-creation-based-on-reading-time/414673",
+      "author" : "nickdb"
+    },
+    {
+      "title" : "Discourse Full-width component",
+      "url" : "https://meta.discourse.org/t/discourse-full-width-component/292496",
+      "author" : "chapoi"
+    },
+    {
+      "title" : "Header Categories Navbar",
+      "url" : "https://meta.discourse.org/t/header-categories-navbar/249179",
+      "author" : "Discourse"
+    },
+    {
+      "title" : "Why isn't --category-bg-color set?",
+      "url" : "https://meta.discourse.org/t/why-isnt-category-bg-color-set/288580",
+      "author" : "Fma965"
+    },
+    {
+      "title" : "How can I improve the style/rendering of the category title and description part?",
+      "url" : "https://meta.discourse.org/t/how-can-i-improve-the-style-rendering-of-the-category-title-and-description-part/362231",
+      "author" : "joshhabka"
+    },
+    {
+      "title" : "Issue with font colour in category badges",
+      "url" : "https://meta.discourse.org/t/issue-with-font-colour-in-category-badges/401679",
+      "author" : "RFL"
+    },
+    {
+      "title" : "Category Badge Styles",
+      "url" : "https://meta.discourse.org/t/category-badge-styles/285320",
+      "author" : "Discourse"
+    },
+    {
+      "title" : "DiscoTOC - automatic table of contents",
+      "url" : "https://meta.discourse.org/t/discotoc-automatic-table-of-contents/111143",
+      "author" : "Discourse"
+    },
+    {
+      "title" : "External Link Shield – Exit Confirmation & Trust Gating",
+      "url" : "https://meta.discourse.org/t/external-link-shield-exit-confirmation-trust-gating/392962",
+      "author" : "Don"
+    },
+    {
+      "title" : "Discourse Mermaid",
+      "url" : "https://meta.discourse.org/t/discourse-mermaid/218242",
+      "author" : "Discourse"
+    },
+    {
+      "title" : "Post Badges",
+      "url" : "https://meta.discourse.org/t/post-badges/114722",
+      "author" : "Discourse"
+    },
+    {
+      "title" : "Featured Topics",
+      "url" : "https://meta.discourse.org/t/featured-topics/217580",
+      "author" : "manuel"
+    },
+    {
+      "title" : "Editor Preview Position",
+      "url" : "https://meta.discourse.org/t/editor-preview-position/309934",
+      "author" : "Alteras"
+    },
+    {
+      "title" : "Surface more data to help fight newly create spam users",
+      "url" : "https://meta.discourse.org/t/surface-more-data-to-help-fight-newly-create-spam-users/416673",
+      "author" : "watchmanmonitor"
+    },
+    {
+      "title" : "Reviews show notes for other reviews",
+      "url" : "https://meta.discourse.org/t/reviews-show-notes-for-other-reviews/416599",
+      "author" : "Dannii"
+    },
+    {
+      "title" : "/filter would be better if it supported Personal Messages",
+      "url" : "https://meta.discourse.org/t/filter-would-be-better-if-it-supported-personal-messages/416684",
+      "author" : "nathank"
+    },
+    {
+      "title" : "New to Discourse? Start here!",
+      "url" : "https://meta.discourse.org/t/new-to-discourse-start-here/1",
+      "author" : "Discourse"
+    },
+    {
+      "title" : "Where is the non self hosted version of discourse hosted?",
+      "url" : "https://meta.discourse.org/t/where-is-the-non-self-hosted-version-of-discourse-hosted/416687",
+      "author" : "BayResistance"
+    }
+  ]
+}

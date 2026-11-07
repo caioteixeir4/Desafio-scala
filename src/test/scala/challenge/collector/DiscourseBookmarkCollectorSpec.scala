@@ -76,6 +76,78 @@ class DiscourseBookmarkCollectorSpec extends munit.FunSuite:
     assertEquals(requested.size, 1)
   }
 
+  test("paginacao com as respostas REAIS do site: segue ?page=1 e para na ultima (40 bookmarks)") {
+    def res(name: String) =
+      val src = scala.io.Source.fromResource(s"fixtures/$name")
+      try src.mkString finally src.close()
+
+    val (result, requested) = collectWith(
+      Map(
+        "/u/u/bookmarks.json"        -> res("bookmarks-page-real-p0.json").replace("/u/Caio_Teixeira/", "/u/u/"),
+        "/u/u/bookmarks.json?page=1" -> res("bookmarks-page-real-p1.json")
+      )
+    )
+    assertEquals(result.map(_.size), Right(40))
+    assertEquals(requested, List("/u/u/bookmarks.json", "/u/u/bookmarks.json?page=1"))
+  }
+
+  // --- HTTP 429 / Retry-After ---
+
+  private val firstPath = "/u/u/bookmarks.json"
+
+  /** Servidor que responde `responses` na ordem; registra as esperas pedidas ao `sleep` injetado. */
+  private def collectWithResponses(responses: List[Response[String]], maxWaitMs: Long = 60_000L) =
+    val queue  = scala.collection.mutable.Queue.from(responses)
+    val sleeps = scala.collection.mutable.ListBuffer.empty[Long]
+    val backend = SttpBackendStub.synchronous.whenAnyRequest.thenRespondF(queue.dequeue())
+    val collector = DiscourseBookmarkCollector(
+      Http(config, backend, RateLimiter(0)),
+      maxWaitMs = maxWaitMs,
+      sleep = ms => sleeps += ms
+    )
+    (collector.collectAll(session), sleeps.toList, responses.size - queue.size)
+
+  private def tooMany(retryAfter: Option[String]) =
+    val base = Response("", StatusCode.TooManyRequests)
+    retryAfter.fold(base)(v => base.copy(headers = Seq(sttp.model.Header("Retry-After", v))))
+
+  test("429 com Retry-After: espera o tempo pedido e tenta de novo ate dar certo") {
+    val (result, sleeps, used) = collectWithResponses(
+      List(tooMany(Some("2")), tooMany(Some("3")), Response.ok(page(List(1, 2), None)))
+    )
+    assertEquals(result.map(_.size), Right(2))
+    assertEquals(sleeps, List(2000L, 3000L))
+    assertEquals(used, 3)
+  }
+
+  test("429 sem Retry-After usa a espera padrao") {
+    val (result, sleeps, _) = collectWithResponses(List(tooMany(None), Response.ok(page(List(1), None))))
+    assertEquals(result.map(_.size), Right(1))
+    assertEquals(sleeps, List(5000L))
+  }
+
+  test("429 persistente desiste apos o maximo de tentativas, sem laco infinito") {
+    val (result, sleeps, used) = collectWithResponses(List.fill(10)(tooMany(Some("1"))))
+    assert(result.left.exists(_.contains("429")))
+    assertEquals(sleeps.size, 3) // 3 novas tentativas
+    assertEquals(used, 4)        // 1 original + 3 repeticoes
+  }
+
+  test("Retry-After maior que o maximo: desiste na hora, sem esperar") {
+    val (result, sleeps, used) = collectWithResponses(List(tooMany(Some("3600"))), maxWaitMs = 60_000L)
+    assert(result.left.exists(_.contains("acima do maximo")))
+    assertEquals(sleeps, Nil)
+    assertEquals(used, 1)
+  }
+
+  test("Retry-After em formato de data HTTP no passado: tenta de novo sem esperar") {
+    val (result, sleeps, _) = collectWithResponses(
+      List(tooMany(Some("Wed, 21 Oct 2015 07:28:00 GMT")), Response.ok(page(List(1), None)))
+    )
+    assertEquals(result.map(_.size), Right(1))
+    assertEquals(sleeps, List(0L))
+  }
+
   test("HTTP 403 na coleta vira erro explicito") {
     val backend = SttpBackendStub.synchronous.whenAnyRequest.thenRespond("", StatusCode.Forbidden)
     val collector = DiscourseBookmarkCollector(Http(config, backend, RateLimiter(0)))

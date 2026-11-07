@@ -12,7 +12,7 @@ Requisito: Docker.
    cp .env.example .env
    ```
 
-   Preencha `DISCOURSE_USERNAME` (email ou usuário) e `DISCOURSE_PASSWORD`. Defina também `USER_AGENT` com seu nome e contato.
+   Preencha `DISCOURSE_USERNAME` (email ou usuário) e `DISCOURSE_PASSWORD`. O `USER_AGENT` já tem um padrão com nome e contato do autor; quem for rodar com outra conta deve trocá-lo pelo próprio.
 
 2. Rode o robô:
 
@@ -26,7 +26,7 @@ Requisito: Docker.
    docker compose run --rm app sbt -batch test
    ```
 
-O `output.json` é gerado na raiz do projeto.
+O `output.json` é gerado na raiz do projeto (ignorado pelo git). Um exemplo de saída real está em [examples/output.json](examples/output.json).
 
 ### Variáveis de ambiente
 
@@ -34,7 +34,7 @@ O `output.json` é gerado na raiz do projeto.
 |---|---|---|
 | `DISCOURSE_USERNAME` | sim | |
 | `DISCOURSE_PASSWORD` | sim | |
-| `USER_AGENT` | não | `oystr-code-challenge-bot/0.1 (...)`; defina com seu contato |
+| `USER_AGENT` | não | `oystr-code-challenge-bot/0.1 (Caio Teixeira; https://github.com/caioteixeir4)` |
 | `DISCOURSE_BASE_URL` | não | `https://meta.discourse.org` |
 | `MIN_REQUEST_INTERVAL_MS` | não | `1000` |
 | `OUTPUT_PATH` | não | `output.json` |
@@ -47,7 +47,7 @@ O `output.json` é gerado na raiz do projeto.
   "source": "https://meta.discourse.org",
   "username": "Caio_Teixeira",
   "collectedAt": "2026-11-05T23:52:50Z",
-  "total": 20,
+  "total": 40,
   "bookmarks": [
     { "title": "...", "url": "https://meta.discourse.org/t/...", "author": "..." }
   ]
@@ -92,6 +92,8 @@ src/test/       testes; a coleta paginada usa um servidor simulado
 - **Evidência positiva de sessão.** Depois do `POST /session`, o robô só segue se `/session/current.json` devolver `current_user.username`.
 - **Sessão do zero a cada execução**, com cookie jar vazio. Nenhum cookie ou token é guardado no código.
 - **Paginação guiada pela resposta.** O robô segue `more_bookmarks_url` até ela sumir. Não há contagem de páginas fixa; existe só uma trava de 1000 páginas contra loop infinito, e a coleta para em página vazia ou link repetido.
+- **Rate limit (HTTP 429) na coleta.** O robô respeita `Retry-After` (segundos ou data HTTP): espera e tenta de novo, no máximo 3 vezes por página. Sem o cabeçalho, espera 5 s. Se o servidor pedir mais de 60 s, desiste na hora com mensagem clara (código 40) em vez de ficar parado ou insistir. No login, o 429 não é repetido: vira o erro `RateLimited` (código 21).
+- **Logout ao final.** Como a sessão nasce do zero a cada execução, o robô a encerra no fim (`DELETE /session/{usuario}`) e confirma que `/session/current.json` voltou a ser anônimo, para não deixar um token de login novo na conta a cada execução. O `output.json` é gravado antes, e uma falha no logout só gera aviso; não altera o código de saída.
 - **Falha explícita em vez de dado inventado.** Se o autor de um bookmark não vier na resposta, o parser retorna erro.
 - **Cuidado com o alvo.** Requisições sequenciais, no mínimo 1 segundo entre elas, User-Agent identificável.
 - **`robots.txt` aplicado no código.** No início o robô baixa o `robots.txt` e toda requisição passa pelas regras (RFC 9309: regra mais longa vence, `*` e `$`). Um caminho bloqueado nem chega a ser requisitado. `robots.txt` 4xx libera tudo; 5xx ou falha de rede interrompe a execução. A única exceção é `/session`, necessária para o login, configurada em `Http` e explicada no RECON.md.
@@ -100,8 +102,8 @@ src/test/       testes; a coleta paginada usa um servidor simulado
 
 ## O que ficou faltando
 
-- **Menos de 30 bookmarks.** A conta tem 20; o site deu erro ao marcar mais. A paginação foi validada com simulação, mas não contra o site real com mais de uma página, e o nome do campo `more_bookmarks_url` não foi confirmado numa resposta real.
+- **Limite diário de favoritos no site.** O Discourse bloqueia (HTTP 429) a criação de mais de ~20 favoritos por dia; por isso a conta chegou a 40 favoritos em dias diferentes. A coleta real de 40 bookmarks (2 páginas) funcionou e a paginação por `more_bookmarks_url` foi confirmada no site.
 - **Verificação em duas etapas (bônus)** não foi implementada; o robô só detecta a exigência e termina com erro tipado.
-- **Fixtures reais.** Os testes do parser de bookmarks usam JSON sintético. Falta trocá-lo por respostas reais salvas com `RAW_DUMP_DIR`.
+- **Bookmarks do tipo `Post`.** O parser e o coletor são testados contra duas páginas reais (`bookmarks-page-real-p0.json` e `-p1.json`), mas todos os 40 bookmarks são do tipo `Topic`. Favoritos de uma postagem específica (`Post`) não apareceram, então esse formato não foi verificado; o parser falha com erro explícito se faltar o autor.
 - **Os campos de erro de 2FA e de conta não ativada** foram escritos de memória e não verificados contra o site.
-- **Termos de uso** do fórum devem ser conferidos por quem entrega.
+- **Termos de uso do fórum.** Os termos (versão de 25/03/2026) proíbem acesso automatizado por programa que não seja navegador. O desafio exige exatamente isso, então a entrega não afirma conformidade; os detalhes e as mitigações estão no RECON.md (seção 4). Falta confirmar com quem propôs o desafio que a automação é autorizada.

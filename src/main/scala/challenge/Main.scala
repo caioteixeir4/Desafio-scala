@@ -24,7 +24,8 @@ import sttp.client3.HttpClientSyncBackend
           System.err.println(err.message)
           sys.exit(3)
         case Right(_) => ()
-      DiscourseAuthenticator(config.username, config.password, http).login() match
+      val auth = DiscourseAuthenticator(config.username, config.password, http)
+      auth.login() match
         case Left(err) =>
           System.err.println(s"Falha de autenticacao: ${err.message}")
           // Codigos de saida distintos por causa da falha.
@@ -40,17 +41,27 @@ import sttp.client3.HttpClientSyncBackend
         case Right(session) =>
           println(s"Autenticado como ${session.username}")
           val collector = DiscourseBookmarkCollector(http, config.rawDumpDir.map(Paths.get(_)))
-          collector.collectAll(session) match
-            case Left(err) =>
-              System.err.println(s"Falha na coleta: $err")
-              sys.exit(40)
-            case Right(bookmarks) =>
-              val output = Output(
-                source = config.baseUrl,
-                username = session.username,
-                collectedAt = Instant.now().toString,
-                total = bookmarks.size,
-                bookmarks = bookmarks
-              )
-              Files.writeString(Paths.get(config.outputPath), output.asJson.spaces2)
-              println(s"${bookmarks.size} bookmarks gravados em ${config.outputPath}")
+          val collected = collector.collectAll(session)
+
+          // O resultado e gravado antes do logout: uma falha ao sair nunca pode custar a coleta.
+          collected.foreach { bookmarks =>
+            val output = Output(
+              source = config.baseUrl,
+              username = session.username,
+              collectedAt = Instant.now().toString,
+              total = bookmarks.size,
+              bookmarks = bookmarks
+            )
+            Files.writeString(Paths.get(config.outputPath), output.asJson.spaces2)
+            println(s"${bookmarks.size} bookmarks gravados em ${config.outputPath}")
+          }
+
+          // Encerra a sessao (com sucesso ou nao na coleta) para nao deixar token de login na conta.
+          auth.logout(session) match
+            case Right(_)  => System.err.println("Sessao encerrada (logout confirmado)")
+            case Left(err) => System.err.println(s"Aviso: logout falhou, a sessao pode ter ficado ativa: ${err.message}")
+
+          collected.left.foreach { err =>
+            System.err.println(s"Falha na coleta: $err")
+            sys.exit(40)
+          }

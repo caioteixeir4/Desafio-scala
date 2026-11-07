@@ -3,7 +3,7 @@
 target/
 project/target/
 project/project/
-output.json
+/output.json
 .idea/
 .bsp/
 raw/

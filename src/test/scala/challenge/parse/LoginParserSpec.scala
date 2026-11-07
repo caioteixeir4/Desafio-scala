@@ -39,6 +39,13 @@ class LoginParserSpec extends munit.FunSuite:
     assert(LoginParser.parseLogin(200, "<html>").left.exists(_.isInstanceOf[UnexpectedResponse]))
   }
 
+  test("parseLogout: 2xx e ok; 429, 5xx e outros 4xx sao erros distintos") {
+    assertEquals(LoginParser.parseLogout(200), Right(()))
+    assert(LoginParser.parseLogout(429).left.exists(_.isInstanceOf[RateLimited]))
+    assert(LoginParser.parseLogout(503).left.exists(_.isInstanceOf[SiteUnavailable]))
+    assert(LoginParser.parseLogout(403).left.exists(_.isInstanceOf[UnexpectedResponse]))
+  }
+
   test("parseCurrentUser: 404 anonimo nao e autenticado") {
     assert(LoginParser.parseCurrentUser(404, "").left.exists(_.isInstanceOf[NotAuthenticated]))
   }
