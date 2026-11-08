@@ -21,7 +21,7 @@ O campo `login` aceita o email. O username real da conta (`Caio_Teixeira`) é di
 - Sem o cookie `_forum_session` ou sem o `X-CSRF-Token`: o Discourse rejeita o `POST /session`. **Não verificado**, porque o robô sempre envia os dois e não provoquei a falha de propósito. Nem o navegador omite essas peças, então a captura não ajuda aqui.
 - Credencial errada: o Discourse responde com `reason: "invalid_credentials"` (esperado; coberto por teste com fixture sintética, **não verificado** contra o site real para não gastar tentativas de login).
 - Conta sem email confirmado: `reason: "not_activated"` (**não verificado**).
-- Segundo fator ativo: os campos usados (`second_factor_required`, `invalid_second_factor`, `security_key_required`) foram escritos de memória e **não foram verificados**; a conta usada não tem 2FA.
+- Segundo fator ativo: o `reason: "invalid_second_factor"` e os campos de envio (`second_factor_method`, `second_factor_token`) foram conferidos no código-fonte do Discourse (seção 7). Já `second_factor_required` e `security_key_required` **não** apareceram lá. O fluxo foi testado no site real com uma conta de teste com 2FA (seção 7).
 
 Erros são tipados (`challenge.auth.AuthError`) e cada um vira um código de saída diferente: credencial inválida (10), conta não ativada (11), 2FA exigido (12), site fora do ar (20), rate limit 429 (21), sem evidência de sessão (30), resposta inesperada (31).
 
@@ -43,7 +43,7 @@ O caminho foi, em ordem:
 
 Isso confirma o fluxo de dois passos do robô. Diferenças em relação ao que o robô envia:
 
-- O navegador manda também `second_factor_method` e `timezone`. O robô manda só `login` e `password`, e o login funciona para uma conta sem 2FA. Esses dois campos provavelmente só importam com 2FA ligado, mas isso **não foi verificado**.
+- O navegador manda também `second_factor_method` e `timezone`. O robô manda só `login` e `password` (mais `second_factor_method` e `second_factor_token` quando há `DISCOURSE_TOTP_SECRET`, seção 7), e o login funciona para uma conta sem 2FA. O `timezone` não é enviado; na leitura de `create` no código-fonte só apareceram `login` e `password` como parâmetros diretos, mas não li o resto do fluxo.
 - Os corpos das respostas não foram capturados no DevTools, então o formato JSON do sucesso e dos erros continua confirmado só pelo comportamento do robô (login aceito) e não por esta captura.
 
 **Um falso alarme que vale registrar:** numa captura anterior apareceu um `POST /login` com `302` e `Location: /`. Parecia um login por formulário, mas a requisição já saiu com o cookie de sessão e a resposta trazia `x-discourse-route: static/enter` e o nome do usuário já logado. Ou seja, o usuário já estava autenticado e a rota apenas redirecionou; não era um login. A leitura é inferida dos cabeçalhos, não provada. Por isso o `/login` **não** foi tratado como caminho alternativo de autenticação.
@@ -67,7 +67,7 @@ O robô usa o **mesmo fluxo de login que o navegador** (`GET /session/csrf`, dep
 | painel rápido do avatar (descartado) | `get ".../:username/user-menu-bookmarks" => "users#user_menu_bookmarks"` |
 | criar favorito (o `429` do limite diário) | `resources :bookmarks, only: %i[create destroy update]` |
 
-O mesmo arquivo declara as rotas de segundo fator (`session/2fa`, `session/passkey/...`), úteis para o bônus.
+O mesmo arquivo declara rotas de segundo fator (`session/2fa`, `session/passkey/...`). O bônus não precisou delas: o código TOTP vai no próprio `POST /session` (seção 7).
 
 **Ordem em que as coisas realmente aconteceram:** o fluxo foi montado a partir do conhecimento prévio do Discourse, testado primeiro com sondagens anônimas e depois com execução real; o DevTools e a consulta ao `routes.rb` vieram **depois**, como confirmação, e não como origem da descoberta. A documentação pública de API do Discourse não foi usada: ela trata de autenticação por API key, que o desafio proíbe.
 
@@ -94,6 +94,7 @@ O que **não foi verificado**: o que o site faz se o total for múltiplo exato d
 
 - **`title` x `fancy_title`:** a resposta traz os dois. `fancy_title` e `excerpt` vêm **traduzidos** (a conta recebe conteúdo localizado em português, ex.: "Navegação PWA de Desktop"), enquanto `title` fica no original ("Desktop PWA Navigation"). O robô usa `title`, para o resultado não depender do idioma da conta. Há um teste que garante isso.
 - **`bookmarkable_type`:** os 40 itens são `"Topic"` e têm `linked_post_number: 1`, então a "postagem marcada" é a primeira do tópico e `user` é quem abriu o tópico. Bookmarks de uma postagem específica (`"Post"`) não apareceram, então o formato deles **não foi verificado**. Se faltar `user.username` (ou `title`), o parser mantém o item com `null` naquele campo e gera aviso; se faltar `bookmarkable_url`, ignora o item e avisa. Nada é inventado, e os avisos aparecem no `stderr` e em `warnings` no `output.json`.
+- **Lista vazia:** uma conta **sem nenhum bookmark** recebe `{"bookmarks": []}` na raiz, sem `user_bookmark_list` e sem `more_bookmarks_url` (confirmado no `users_controller.rb` do Discourse e visto no site em 2026-11-08, com a conta de teste). O primeiro parser só conhecia o formato com bookmarks e terminava com erro (código 40) nessa conta; agora o formato vazio é tratado como lista válida e o `output.json` sai com `total: 0`.
 - A resposta tem muitos campos que o robô ignora (`excerpt` em HTML, `tags`, `category_id`, `last_read_post_number` etc.). Não foi encontrado email nem outro dado pessoal sensível, só nomes de usuário públicos do fórum; por isso o arquivo pôde virar fixture.
 
 **Alternativas descartadas**
@@ -143,21 +144,41 @@ Os termos **proíbem** pontos que este robô, por natureza, exerce. Em resumo (p
 ## 5. O que quebrou no caminho
 
 - **Limite de 20 favoritos por dia no site:** o desafio pede 30 ou mais. Ao tentar marcar mais tópicos pelo site, o navegador recebeu `HTTP 429 (Too Many Requests)` em `POST /bookmarks.json`, que corresponde ao limite diário de criação de bookmarks do Discourse (o padrão documentado no Meta é 20 por dia; o valor atual desta instância não foi confirmado, só observado: a conta parou em 20). A interface ainda lança um `TypeError` ao tratar esse erro, defeito do site e não do robô. O limite diário zera: marcando em dias diferentes a conta chegou a **40 bookmarks**, acima dos 30 pedidos, e a paginação foi então validada contra o site real.
-- **Primeira versão do coletor:** assumia o formato do JSON de bookmarks. Foi validada contra dados reais; o parser falha explicitamente se o autor não vier, em vez de inventar um valor.
+- **Primeira versão do coletor:** assumia o formato do JSON de bookmarks e foi validada contra dados reais. Ela derrubava a página inteira se um único bookmark viesse sem autor. Isso foi trocado por um tratamento por item: o item fica com `null` no campo que faltou, ou é ignorado se não tiver URL, sempre com aviso em `warnings` (seção 3).
+- **Conta sem bookmarks dava erro:** o site responde `{"bookmarks": []}` nesse caso, formato que o parser não conhecia, e o robô terminava com código 40. Descoberto ao rodar a conta de teste do 2FA; corrigido e coberto por teste (seção 3, "Lista vazia").
+- **Primeira chave do 2FA não correspondia ao app:** o site recusou o código; o diagnóstico descartou o relógio e mostrou que a chave copiada não era a do app (seção 7, "Tropeço na verificação").
+- **Intervalo mínimo inválido aceito em silêncio:** `MIN_REQUEST_INTERVAL_MS=abc` caía no padrão de 1000 ms sem avisar. Agora o robô para com erro (código 2) e mostra o valor recebido.
 - Problemas menores de compilação e de API de testes do sttp foram corrigidos durante o desenvolvimento.
 - **Efeito colateral observado: um token de login novo por execução.** A resposta de `/u/Caio_Teixeira.json` (perfil da própria conta, capturada no navegador) lista `user_auth_tokens` com várias entradas "Unknown browser" cujos horários coincidem com as execuções do robô (por exemplo, 2026-11-05 por volta de 23:50 e 23:52 UTC). Ou seja, como a sessão nasce do zero a cada execução, cada execução deixava um token de autenticação na conta. **Correção:** o robô agora encerra a sessão no final (`GET /session/csrf`, `DELETE /session/{usuario}` com `X-CSRF-Token`, e confirma com `/session/current.json` voltando a 404). O logout é tolerante a falha: o `output.json` é gravado antes, e se o logout falhar o robô só avisa. Está coberto por testes com um servidor simulado e **foi verificado contra o site real em 2026-11-07**: na execução, o robô coletou os 40 bookmarks, gravou o `output.json` e imprimiu "Sessao encerrada (logout confirmado)", que só aparece quando o `/session/current.json` volta a dar 404 depois do `DELETE`. O formato do `DELETE` veio do conhecimento do Discourse e se mostrou correto. Não conferi a lista de tokens da conta depois desta execução; a prova é a confirmação feita pelo próprio robô.
 
 ## 6. O que quebraria este robô em três meses
 
-- **Mudança no formato do JSON de bookmarks** (campos `bookmarkable_url`, `user.username`, `more_bookmarks_url`): o parser falha com mensagem clara, mas precisa de ajuste.
+- **Mudança no formato do JSON de bookmarks** (campos `bookmarkable_url`, `user.username`, `more_bookmarks_url`): se a estrutura da lista mudar, a coleta falha com mensagem clara (código 40); se só alguns campos sumirem, o robô segue com `null` e avisos em `warnings`. Nos dois casos o parser precisa de ajuste.
 - **Mudança no fluxo de login:** CSRF, passkeys ou login por código em dispositivo novo.
 - **Mudança no logout** (`DELETE /session/{usuario}`): o robô só avisa e segue, mas voltaria a deixar um token de login por execução.
 - **Mudança no tamanho da página** (hoje 20 itens): não afeta o robô, que segue `more_bookmarks_url` e não conta páginas.
 - **Rate limit ou bloqueio por User-Agent** (o robô usa um User-Agent identificável e 1 requisição por segundo).
 - **Mudança no `robots.txt` ou nos termos de uso.**
 - **Proteção anti-bot (por exemplo, Cloudflare)** na frente do fórum.
-- **Verificação em duas etapas** ligada na conta: o robô hoje termina com `SecondFactorRequired`.
+- **Verificação em duas etapas** exigida sem `DISCOURSE_TOTP_SECRET`, ou com chave de segurança/passkey: o robô termina com `SecondFactorRequired` (código 12).
 
 ## 7. Bônus: verificação em duas etapas
 
-Não implementado. A conta usada não tem 2FA ativo (o perfil da conta traz `second_factor_enabled: false`). O robô detecta a exigência e termina com um erro tipado específico (código 12), mas não gera nem envia o código TOTP. Os nomes dos campos de resposta de 2FA no Discourse não foram verificados.
+Implementado para **TOTP (app autenticador)** e **verificado no site real em 2026-11-08**, com uma conta de teste separada que tem 2FA. A conta do desafio segue sem 2FA, como o enunciado manda (o perfil dela traz `second_factor_enabled: false`). Na conta de teste, a execução real fez o login com o código gerado pelo robô, confirmou a sessão em `/session/current.json` e confirmou o logout. Essa conta tem 0 bookmarks, e a primeira coleta falhou porque o site responde à lista vazia em outro formato (ver "Lista vazia", seção 3). Depois da correção, a execução completa terminou sem erro: login com 2FA, coleta (0 bookmarks, página 0 sem próxima), gravação do `output.json` com `total: 0` e logout confirmado. A saída dessa execução está em `examples/output-2fa.json`. As duas contas foram mantidas separadas de propósito: a principal sem 2FA (requisito básico, como o enunciado manda) e a de teste com 2FA (bônus).
+
+**O que foi verificado, e como.** Li o código-fonte do Discourse (`app/controllers/session_controller.rb`, `app/models/concerns/second_factor_manager.rb`, `app/models/user_second_factor.rb`, ramo `main`, em 2026-11-08):
+
+- `POST /session` lê `second_factor_token` e `second_factor_method` (convertido para inteiro).
+- Valores do método: `1` = TOTP, `2` = código de backup, `3` = chave de segurança, `4` = passkey.
+- O código TOTP usa os padrões do ROTP (6 dígitos, janela de 30 s, SHA-1), com tolerância de ±30 s, e o servidor guarda o último uso (`after: last_used`): o mesmo código não vale duas vezes.
+- Token ausente e token errado dão a **mesma** resposta (HTTP 200, `reason: "invalid_second_factor"`). O robô não consegue distinguir os dois pela resposta e escolhe a mensagem pelo que ele mesmo enviou.
+- Sem 2FA na conta, o servidor aceita o login normalmente (`authenticate_second_factor` devolve ok); por isso os campos extras só são enviados quando há segredo configurado.
+- O campo `second_factor_required`, que o parser também checa, **não** aparece nesse código; o que vale é o `reason`.
+
+**O que o robô faz.** Com `DISCOURSE_TOTP_SECRET` (segredo em base32), gera o código com HMAC-SHA1 (RFC 6238) logo antes do `POST /session` e envia `second_factor_method=1` e `second_factor_token`. O gerador é conferido contra os vetores oficiais da RFC 6238 (Apêndice B). O login com o servidor simulado confirma que os campos só vão quando há segredo, e que o erro de código rejeitado nunca imprime o segredo nem o código.
+
+**Quem faz o quê.** Ativar o 2FA é um passo único e manual do dono da conta (o enunciado diz "habilite na sua conta"): o site mostra a chave uma única vez, em "Inserir manualmente" na tela de adicionar autenticador. O robô **não** ativa o 2FA nem descobre o segredo sozinho; ele só gera o código a cada execução, a partir da chave em `DISCOURSE_TOTP_SECRET`, sem ninguém digitar nada. Isso é inerente ao TOTP: se o robô pudesse criar o próprio segundo fator só com a senha, o segundo fator não protegeria nada.
+
+**Tropeço na verificação.** A primeira tentativa foi recusada pelo site ("Invalid authentication code. Each code can only be used once."; a mesma mensagem serve para código errado e repetido). O relógio do contêiner estava certo (diferença de 1 a 2 s para o cabeçalho `Date` do site) e o código não vinha da chave que eu tinha em mãos. A causa exata não foi determinada; a chave copiada daquela tentativa não correspondia ao app. Resolveu refazer a ativação e copiar a chave direto da tela, **conferindo antes de rodar o robô** se o código calculado a partir da chave do arquivo era igual ao do app. Cada tentativa de login com 2FA errado conta para o limite do site, então vale conferir antes em vez de repetir o robô.
+
+**O que continua fora.** Chave de segurança e passkey (métodos 3 e 4), que exigem dispositivo ou navegador, e códigos de backup. Guardar o segredo TOTP no mesmo `.env` da senha anula o benefício do segundo fator; é aceitável para uma conta de teste, não para uma conta real.

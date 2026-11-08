@@ -30,7 +30,7 @@ object BookmarkParser:
     for
       json  <- io.circe.parser.parse(body).left.map(e => s"Corpo nao e JSON valido: ${e.message}")
       list   = json.hcursor.downField("user_bookmark_list")
-      items <- list.downField("bookmarks").as[List[Json]].left.map(_ => "Resposta sem user_bookmark_list.bookmarks")
+      items <- itemsOf(json)
     yield
       val parsed = items.zipWithIndex.map((item, i) => bookmark(item.hcursor, i + 1, baseUrl))
       BookmarkPage(
@@ -39,6 +39,18 @@ object BookmarkParser:
         itemCount = items.size,
         warnings = parsed.flatMap(_.warnings)
       )
+
+  /** Lista de itens da resposta. Com bookmarks vem em `user_bookmark_list.bookmarks`; sem nenhum, o Discourse
+    * responde `{"bookmarks": []}` na raiz (users_controller.rb, acao `bookmarks`), o que nao e erro.
+    */
+  private def itemsOf(json: Json): Either[String, List[Json]] =
+    val c      = json.hcursor
+    val nested = c.downField("user_bookmark_list").downField("bookmarks").as[List[Json]]
+    val flat   = c.downField("bookmarks").as[List[Json]]
+    (nested, flat) match
+      case (Right(items), _) => Right(items)
+      case (_, Right(items)) => Right(items)
+      case _ => Left("Resposta sem user_bookmark_list.bookmarks (nem o formato de lista vazia, bookmarks na raiz)")
 
   private def bookmark(c: ACursor, position: Int, baseUrl: String): Item =
     val label  = describe(c, position)

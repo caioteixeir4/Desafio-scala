@@ -1,9 +1,12 @@
 .git
 .env
+.env.*
+!.env.example
 target/
 project/target/
 project/project/
 /output.json
+/output-*.json
 .idea/
 .bsp/
 raw/

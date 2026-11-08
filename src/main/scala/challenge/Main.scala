@@ -24,7 +24,7 @@ import sttp.client3.HttpClientSyncBackend
           System.err.println(err.message)
           sys.exit(3)
         case Right(_) => ()
-      val auth = DiscourseAuthenticator(config.username, config.password, http)
+      val auth = DiscourseAuthenticator(config.username, config.password, http, config.totpSecret)
       auth.login() match
         case Left(err) =>
           System.err.println(s"Falha de autenticacao: ${err.message}")

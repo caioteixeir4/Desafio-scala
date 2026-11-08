@@ -1,8 +1,11 @@
 .env
+.env.*
+!.env.example
 target/
 project/target/
 project/project/
 .bsp/
 .idea/
 /output.json
+/output-*.json
 raw/

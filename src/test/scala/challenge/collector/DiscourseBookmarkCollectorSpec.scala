@@ -59,6 +59,12 @@ class DiscourseBookmarkCollectorSpec extends munit.FunSuite:
     assertEquals(requested.size, 1)
   }
 
+  test("conta sem nenhum bookmark ({\"bookmarks\":[]}) termina com sucesso e lista vazia, em uma requisicao") {
+    val (result, requested) = collectWith(Map("/u/u/bookmarks.json" -> """{"bookmarks":[]}"""))
+    assertEquals(result, Right(Collected(Nil, Nil)))
+    assertEquals(requested.size, 1)
+  }
+
   test("pagina cheia seguida de pagina vazia termina sem erro") {
     val (result, _) = collectWith(
       Map(

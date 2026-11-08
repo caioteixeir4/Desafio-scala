@@ -35,6 +35,15 @@ class BookmarkParserSpec extends munit.FunSuite:
 
   private def bodyOf(items: String*) = s"""{"user_bookmark_list":{"bookmarks":[${items.mkString(",")}]}}"""
 
+  test("conta SEM bookmarks: o site responde {\"bookmarks\":[]} na raiz, e isso e lista vazia valida (nao erro)") {
+    // Formato real confirmado no users_controller.rb do Discourse e visto no site com uma conta sem favoritos.
+    val result = BookmarkParser.parse("""{"bookmarks":[]}""", base)
+    assertEquals(result.map(_.bookmarks), Right(Nil))
+    assertEquals(result.map(_.next), Right(None))
+    assertEquals(result.map(_.itemCount), Right(0))
+    assertEquals(result.map(_.warnings), Right(Nil))
+  }
+
   test("autor ausente: mantem o bookmark com autor null e avisa (nao inventa valor)") {
     val p = BookmarkParser.parse(bodyOf("""{"id":7,"title":"T","bookmarkable_url":"/t/x/1"}"""), base).toOption.get
     assertEquals(p.bookmarks, List(challenge.model.Bookmark(Some("T"), s"$base/t/x/1", None)))

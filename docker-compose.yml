@@ -1,9 +1,9 @@
 services:
   app:
     build: .
-    # Credenciais vem do .env (fora do versionamento)
+    # Credenciais vem do .env (fora do versionamento). Para outra conta: ENV_FILE=.env.2fa docker compose run ...
     env_file:
-      - path: .env
+      - path: ${ENV_FILE:-.env}
         required: false
     volumes:
       - .:/app

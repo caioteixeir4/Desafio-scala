@@ -35,6 +35,22 @@ class ConfigSpec extends munit.FunSuite:
     assertEquals(Config.fromEnv(base + ("MIN_REQUEST_INTERVAL_MS" -> "")).map(_.minRequestIntervalMs), Right(1000L))
   }
 
+  test("segredo TOTP: ausente ou em branco = sem 2FA; valido e guardado") {
+    assertEquals(Config.fromEnv(base).map(_.totpSecret), Right(None))
+    assertEquals(Config.fromEnv(base + ("DISCOURSE_TOTP_SECRET" -> "  ")).map(_.totpSecret), Right(None))
+    assertEquals(
+      Config.fromEnv(base + ("DISCOURSE_TOTP_SECRET" -> "gezd gnbv gy3t qojq")).map(_.totpSecret),
+      Right(Some("gezd gnbv gy3t qojq"))
+    )
+  }
+
+  test("segredo TOTP invalido vira InvalidEnv e a mensagem NAO repete o segredo") {
+    val secret = "nao-e-base32-1890"
+    val result = Config.fromEnv(base + ("DISCOURSE_TOTP_SECRET" -> secret))
+    assert(result.left.exists(_.isInstanceOf[InvalidEnv]))
+    assert(!result.left.exists(_.getMessage.contains(secret)))
+  }
+
   test("RAW_DUMP_DIR so liga o dump quando tem valor") {
     assertEquals(Config.fromEnv(base + ("RAW_DUMP_DIR" -> "raw")).map(_.rawDumpDir), Right(Some("raw")))
     assertEquals(Config.fromEnv(base + ("RAW_DUMP_DIR" -> "")).map(_.rawDumpDir), Right(None))
