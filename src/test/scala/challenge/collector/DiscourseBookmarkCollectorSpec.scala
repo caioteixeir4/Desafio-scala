@@ -49,13 +49,13 @@ class DiscourseBookmarkCollectorSpec extends munit.FunSuite:
         "/u/u/bookmarks.json?page=2" -> page(List(5), None)
       )
     )
-    assertEquals(result.map(_.map(_.title)), Right(List("T1", "T2", "T3", "T4", "T5")))
+    assertEquals(result.map(_.bookmarks.map(_.title)), Right(List("T1", "T2", "T3", "T4", "T5").map(Some(_))))
     assertEquals(requested.size, 3)
   }
 
   test("uma unica pagina sem 'proxima' faz uma unica requisicao") {
     val (result, requested) = collectWith(Map("/u/u/bookmarks.json" -> page(List(1, 2), None)))
-    assertEquals(result.map(_.size), Right(2))
+    assertEquals(result.map(_.bookmarks.size), Right(2))
     assertEquals(requested.size, 1)
   }
 
@@ -66,13 +66,13 @@ class DiscourseBookmarkCollectorSpec extends munit.FunSuite:
         "/u/u/bookmarks.json?page=1" -> page(Nil, Some("/u/u/bookmarks.json?page=2"))
       )
     )
-    assertEquals(result.map(_.size), Right(2))
+    assertEquals(result.map(_.bookmarks.size), Right(2))
   }
 
   test("link de proxima pagina repetido nao causa loop infinito") {
     val loop = "/u/u/bookmarks.json"
     val (result, requested) = collectWith(Map(loop -> page(List(1), Some(loop))))
-    assertEquals(result.map(_.size), Right(1))
+    assertEquals(result.map(_.bookmarks.size), Right(1))
     assertEquals(requested.size, 1)
   }
 
@@ -87,8 +87,35 @@ class DiscourseBookmarkCollectorSpec extends munit.FunSuite:
         "/u/u/bookmarks.json?page=1" -> res("bookmarks-page-real-p1.json")
       )
     )
-    assertEquals(result.map(_.size), Right(40))
+    assertEquals(result.map(_.bookmarks.size), Right(40))
     assertEquals(requested, List("/u/u/bookmarks.json", "/u/u/bookmarks.json?page=1"))
+  }
+
+  // --- Dados incompletos ---
+
+  test("item incompleto nao derruba a coleta: segue, mantem os bons e acumula avisos com a pagina") {
+    val bad  = """{"id":5,"bookmarkable_type":"Post","title":"Sem autor","bookmarkable_url":"/t/s/5"}"""
+    val body = s"""{"user_bookmark_list":{"bookmarks":[${item(1)},$bad,${item(2)}]}}"""
+    val (result, _) = collectWith(Map("/u/u/bookmarks.json" -> body))
+    val collected   = result.toOption.get
+    assertEquals(collected.bookmarks.size, 3)
+    assertEquals(collected.bookmarks.map(_.author), List(Some("a1"), None, Some("a2")))
+    assertEquals(collected.warnings.size, 1)
+    assert(collected.warnings.head.startsWith("pagina 0:"))
+  }
+
+  test("pagina so com itens ignorados NAO encerra a paginacao (usa itemCount, nao bookmarks.size)") {
+    val onlyBad = """{"user_bookmark_list":{"bookmarks":[{"title":"sem url"}],"more_bookmarks_url":"/u/u/bookmarks.json?page=1"}}"""
+    val (result, requested) = collectWith(
+      Map(
+        "/u/u/bookmarks.json"        -> onlyBad,
+        "/u/u/bookmarks.json?page=1" -> page(List(1), None)
+      )
+    )
+    val collected = result.toOption.get
+    assertEquals(collected.bookmarks.map(_.title), List(Some("T1")))
+    assertEquals(collected.warnings.size, 1)
+    assertEquals(requested.size, 2)
   }
 
   // --- HTTP 429 / Retry-After ---
@@ -115,14 +142,14 @@ class DiscourseBookmarkCollectorSpec extends munit.FunSuite:
     val (result, sleeps, used) = collectWithResponses(
       List(tooMany(Some("2")), tooMany(Some("3")), Response.ok(page(List(1, 2), None)))
     )
-    assertEquals(result.map(_.size), Right(2))
+    assertEquals(result.map(_.bookmarks.size), Right(2))
     assertEquals(sleeps, List(2000L, 3000L))
     assertEquals(used, 3)
   }
 
   test("429 sem Retry-After usa a espera padrao") {
     val (result, sleeps, _) = collectWithResponses(List(tooMany(None), Response.ok(page(List(1), None))))
-    assertEquals(result.map(_.size), Right(1))
+    assertEquals(result.map(_.bookmarks.size), Right(1))
     assertEquals(sleeps, List(5000L))
   }
 
@@ -144,7 +171,7 @@ class DiscourseBookmarkCollectorSpec extends munit.FunSuite:
     val (result, sleeps, _) = collectWithResponses(
       List(tooMany(Some("Wed, 21 Oct 2015 07:28:00 GMT")), Response.ok(page(List(1), None)))
     )
-    assertEquals(result.map(_.size), Right(1))
+    assertEquals(result.map(_.bookmarks.size), Right(1))
     assertEquals(sleeps, List(0L))
   }
 

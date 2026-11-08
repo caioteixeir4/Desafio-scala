@@ -93,7 +93,7 @@ O que **não foi verificado**: o que o site faz se o total for múltiplo exato d
 **Observações das respostas reais (2 páginas de 20 itens, ~30 a 40 KB cada):**
 
 - **`title` x `fancy_title`:** a resposta traz os dois. `fancy_title` e `excerpt` vêm **traduzidos** (a conta recebe conteúdo localizado em português, ex.: "Navegação PWA de Desktop"), enquanto `title` fica no original ("Desktop PWA Navigation"). O robô usa `title`, para o resultado não depender do idioma da conta. Há um teste que garante isso.
-- **`bookmarkable_type`:** os 40 itens são `"Topic"` e têm `linked_post_number: 1`, então a "postagem marcada" é a primeira do tópico e `user` é quem abriu o tópico. Bookmarks de uma postagem específica (`"Post"`) não apareceram, então o formato deles **não foi verificado**; o parser falha explicitamente se faltar `user.username`.
+- **`bookmarkable_type`:** os 40 itens são `"Topic"` e têm `linked_post_number: 1`, então a "postagem marcada" é a primeira do tópico e `user` é quem abriu o tópico. Bookmarks de uma postagem específica (`"Post"`) não apareceram, então o formato deles **não foi verificado**. Se faltar `user.username` (ou `title`), o parser mantém o item com `null` naquele campo e gera aviso; se faltar `bookmarkable_url`, ignora o item e avisa. Nada é inventado, e os avisos aparecem no `stderr` e em `warnings` no `output.json`.
 - A resposta tem muitos campos que o robô ignora (`excerpt` em HTML, `tags`, `category_id`, `last_read_post_number` etc.). Não foi encontrado email nem outro dado pessoal sensível, só nomes de usuário públicos do fórum; por isso o arquivo pôde virar fixture.
 
 **Alternativas descartadas**

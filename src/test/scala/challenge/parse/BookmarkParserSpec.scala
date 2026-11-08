@@ -14,9 +14,10 @@ class BookmarkParserSpec extends munit.FunSuite:
 
   test("extrai titulo, url absoluta e autor") {
     val result = BookmarkParser.parse(page(None), base).toOption.get
-    assertEquals(result.bookmarks.map(_.title), List("Topico A", "Topico B"))
+    assertEquals(result.bookmarks.map(_.title), List(Some("Topico A"), Some("Topico B")))
     assertEquals(result.bookmarks.map(_.url), List(s"$base/t/topico-a/1/2", "https://meta.discourse.org/t/topico-b/3"))
-    assertEquals(result.bookmarks.map(_.author), List("alice", "bob"))
+    assertEquals(result.bookmarks.map(_.author), List(Some("alice"), Some("bob")))
+    assertEquals(result.warnings, Nil)
   }
 
   test("proxima pagina vem da propria resposta") {
@@ -30,9 +31,65 @@ class BookmarkParserSpec extends munit.FunSuite:
     assertEquals(result.map(_.bookmarks), Right(Nil))
   }
 
-  test("autor ausente falha explicitamente em vez de inventar valor") {
-    val body = """{"user_bookmark_list":{"bookmarks":[{"title":"T","bookmarkable_url":"/t/x/1"}]}}"""
-    assert(BookmarkParser.parse(body, base).isLeft)
+  // --- Dados incompletos: nao travam a coleta, nao inventam valor, e avisam ---
+
+  private def bodyOf(items: String*) = s"""{"user_bookmark_list":{"bookmarks":[${items.mkString(",")}]}}"""
+
+  test("autor ausente: mantem o bookmark com autor null e avisa (nao inventa valor)") {
+    val p = BookmarkParser.parse(bodyOf("""{"id":7,"title":"T","bookmarkable_url":"/t/x/1"}"""), base).toOption.get
+    assertEquals(p.bookmarks, List(challenge.model.Bookmark(Some("T"), s"$base/t/x/1", None)))
+    assertEquals(p.warnings.size, 1)
+    assert(p.warnings.head.contains("id=7") && p.warnings.head.contains("user.username"))
+  }
+
+  test("autor com 'user' nulo (usuario apagado) tambem vira autor null com aviso") {
+    val p = BookmarkParser.parse(bodyOf("""{"title":"T","bookmarkable_url":"/t/x/1","user":null}"""), base).toOption.get
+    assertEquals(p.bookmarks.map(_.author), List(None))
+    assertEquals(p.warnings.size, 1)
+  }
+
+  test("titulo ausente ou vazio: mantem o bookmark com titulo null e avisa") {
+    val p = BookmarkParser.parse(
+      bodyOf(
+        """{"bookmarkable_url":"/t/a/1","user":{"username":"u"}}""",
+        """{"title":"  ","bookmarkable_url":"/t/b/2","user":{"username":"u"}}"""
+      ),
+      base
+    ).toOption.get
+    assertEquals(p.bookmarks.map(_.title), List(None, None))
+    assertEquals(p.warnings.size, 2)
+  }
+
+  test("sem URL o item e ignorado com aviso, e os demais da pagina continuam") {
+    val p = BookmarkParser.parse(
+      bodyOf(
+        """{"title":"Sem url","user":{"username":"u"}}""",
+        """{"title":"Bom","bookmarkable_url":"/t/ok/1","user":{"username":"u"}}"""
+      ),
+      base
+    ).toOption.get
+    assertEquals(p.bookmarks.map(_.title), List(Some("Bom")))
+    assertEquals(p.itemCount, 2) // o item ignorado conta como recebido (a paginacao depende disso)
+    assertEquals(p.warnings.size, 1)
+    assert(p.warnings.head.startsWith("bookmark #1 ignorado"))
+  }
+
+  test("item que nem e objeto (ex.: null) e ignorado com aviso, sem quebrar") {
+    val p = BookmarkParser.parse(bodyOf("null", """{"title":"Bom","bookmarkable_url":"/t/ok/1","user":{"username":"u"}}"""), base).toOption.get
+    assertEquals(p.bookmarks.size, 1)
+    assertEquals(p.warnings.size, 1)
+  }
+
+  test("bookmark do tipo Post (formato SINTETICO, nao capturado do site): url do post e autor do post") {
+    val post =
+      """{"id":99,"bookmarkable_type":"Post","title":"Topico do post","bookmarkable_url":"/t/topico-do-post/10/3","user":{"username":"carol"}}"""
+    val p = BookmarkParser.parse(bodyOf(post), base).toOption.get
+    assertEquals(p.bookmarks, List(challenge.model.Bookmark(Some("Topico do post"), s"$base/t/topico-do-post/10/3", Some("carol"))))
+    assertEquals(p.warnings, Nil)
+  }
+
+  test("resposta que nao e a lista esperada continua sendo erro da pagina (nao ha o que aproveitar)") {
+    assert(BookmarkParser.parse("""{"outra":"coisa"}""", base).isLeft)
   }
 
   test("JSON invalido vira erro") {
@@ -68,20 +125,23 @@ class BookmarkParserSpec extends munit.FunSuite:
     assertEquals(
       real.bookmarks.head,
       challenge.model.Bookmark(
-        title = "Desktop PWA Navigation",
+        title = Some("Desktop PWA Navigation"),
         url = "https://meta.discourse.org/t/desktop-pwa-navigation/241108",
-        author = "Don"
+        author = Some("Don")
       )
     )
   }
 
   test("resposta real: usa 'title' original, nao o 'fancy_title' traduzido") {
     // A resposta traz fancy_title localizado ("Navegacao PWA de Desktop"); o robo nao deve usa-lo.
-    assert(!real.bookmarks.exists(_.title.startsWith("Navega")))
+    assert(!real.bookmarks.exists(_.title.exists(_.startsWith("Navega"))))
   }
 
-  test("resposta real: todos tem autor e url do forum") {
+  test("resposta real: todos tem titulo, autor e url do forum, e nenhum aviso") {
+    assert(real.bookmarks.forall(_.title.nonEmpty))
     assert(real.bookmarks.forall(_.author.nonEmpty))
     assert(real.bookmarks.forall(_.url.startsWith(base + "/t/")))
-    assert(real.bookmarks.exists(_.author == "Discourse")) // posts oficiais
+    assert(real.bookmarks.exists(_.author.contains("Discourse"))) // posts oficiais
+    assertEquals(real.warnings, Nil)
+    assertEquals(realP0.warnings, Nil)
   }

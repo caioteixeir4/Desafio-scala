@@ -8,7 +8,6 @@ import scala.collection.mutable
 import scala.util.Try
 
 import challenge.http.{Http, Session}
-import challenge.model.Bookmark
 import challenge.parse.BookmarkParser
 import sttp.client3.*
 import sttp.model.Uri
@@ -28,26 +27,30 @@ final class DiscourseBookmarkCollector(
     sleep: Long => Unit = ms => Thread.sleep(ms)
 ) extends BookmarkCollector:
 
-  def collectAll(session: Session): Either[String, List[Bookmark]] =
+  def collectAll(session: Session): Either[String, Collected] =
     val jar = mutable.Map.from(session.cookies)
     rawDumpDir.foreach(Files.createDirectories(_))
 
     @tailrec
-    def loop(path: String, page: Int, seen: Set[String], acc: List[Bookmark]): Either[String, List[Bookmark]] =
+    def loop(path: String, page: Int, seen: Set[String], acc: Collected): Either[String, Collected] =
       if page >= maxPages then Left(s"Excedeu $maxPages paginas; abortando")
       else
         fetch(jar, path, page) match
           case Left(err) => Left(err)
           case Right(parsed) =>
             System.err.println(s"pagina $page: ${parsed.bookmarks.size} bookmarks, proxima=${parsed.next.getOrElse("(nenhuma)")}")
-            val all = acc ++ parsed.bookmarks
+            val all = Collected(
+              acc.bookmarks ++ parsed.bookmarks,
+              acc.warnings ++ parsed.warnings.map(w => s"pagina $page: $w")
+            )
             parsed.next match
-              case Some(next) if parsed.bookmarks.nonEmpty && !seen.contains(next) =>
+              // itemCount (e nao bookmarks.size): uma pagina so com itens ignorados nao pode encerrar a paginacao.
+              case Some(next) if parsed.itemCount > 0 && !seen.contains(next) =>
                 loop(next, page + 1, seen + next, all)
               case _ => Right(all)
 
     val first = s"/u/${session.username}/bookmarks.json"
-    loop(first, 0, Set(first), Nil)
+    loop(first, 0, Set(first), Collected(Nil, Nil))
 
   private def fetch(jar: mutable.Map[String, String], path: String, page: Int) =
     val uri = Uri.unsafeParse(http.baseUrl + path)

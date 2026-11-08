@@ -44,16 +44,20 @@ import sttp.client3.HttpClientSyncBackend
           val collected = collector.collectAll(session)
 
           // O resultado e gravado antes do logout: uma falha ao sair nunca pode custar a coleta.
-          collected.foreach { bookmarks =>
+          collected.foreach { result =>
             val output = Output(
               source = config.baseUrl,
               username = session.username,
               collectedAt = Instant.now().toString,
-              total = bookmarks.size,
-              bookmarks = bookmarks
+              total = result.bookmarks.size,
+              bookmarks = result.bookmarks,
+              warnings = result.warnings
             )
             Files.writeString(Paths.get(config.outputPath), output.asJson.spaces2)
-            println(s"${bookmarks.size} bookmarks gravados em ${config.outputPath}")
+            println(s"${result.bookmarks.size} bookmarks gravados em ${config.outputPath}")
+            if result.warnings.nonEmpty then
+              System.err.println(s"ATENCAO: ${result.warnings.size} aviso(s) na coleta; o resultado pode estar incompleto:")
+              result.warnings.foreach(w => System.err.println(s"  - $w"))
           }
 
           // Encerra a sessao (com sucesso ou nao na coleta) para nao deixar token de login na conta.
